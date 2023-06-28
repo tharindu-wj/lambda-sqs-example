@@ -5,7 +5,8 @@
   "main": "",
   "scripts": {
     "build": "webpack",
-    "deploy": "npm run build && sls deploy"
+    "package": "cd artifacts && zip sendMessage sendMessage.js && zip recieveMessage recieveMessage.js",
+    "deploy": "npm run build && npm run package && sls deploy"
   },
   "keywords": [],
   "author": "Tharindu Wickramasinghe",

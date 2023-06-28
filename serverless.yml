@@ -1,64 +1,68 @@
-  service: lambdaSqsExample
+service: lambdaSqsExample
 
-  provider:
-    name: aws
-    runtime: nodejs18.x
-    stage: ${opt:stage, 'dev'}
-    region: us-east-1
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
 
-  plugins:
-    - serverless-iam-roles-per-function
+plugins:
+  - serverless-iam-roles-per-function
 
-  functions:
-    sendMessage:
-      handler: artifacts/sendMessage.handler
-      name: ${self:provider.stage}-${self:service}-sendMessage
-      memorySize: 128
-      timeout: 30 
-      environment:
-        QUEUE_URL:
-          Ref: primaryQueue
-      iamRoleStatements:
-        - Effect: 'Allow'
-          Action:
-            - 'sqs:SendMessage'
-          Resource:
+functions:
+  sendMessage:
+    handler: artifacts/sendMessage.handler
+    name: ${self:provider.stage}-${self:service}-sendMessage
+    memorySize: 128
+    timeout: 30
+    environment:
+      QUEUE_URL:
+        Ref: primaryQueue
+    iamRoleStatements:
+      - Effect: 'Allow'
+        Action:
+          - 'sqs:SendMessage'
+        Resource:
+          Fn::GetAtt:
+            - primaryQueue
+            - Arn
+    package:
+      artifact: 'artifacts/sendMessage.zip'
+
+  recieveMessage:
+    handler: artifacts/recieveMessage.handler
+    name: ${self:provider.stage}-${self:service}-recieveMessage
+    memorySize: 128
+    timeout: 30
+    events:
+      - sqs:
+          arn:
             Fn::GetAtt:
               - primaryQueue
               - Arn
+          batchSize: 1
+          maximumBatchingWindow: 300
+          enabled: false
+    iamRoleStatements:
+      - Effect: 'Allow'
+        Action:
+          - 'sqs:GetQueueAttributes'
+          - 'sqs:ReceiveMessage'
+          - 'sqs:GetQueueUrl'
+          - 'sqs:DeleteMessage'
+        Resource:
+          Fn::GetAtt:
+            - primaryQueue
+            - Arn
+    package:
+      artifact: 'artifacts/recieveMessage.zip'
 
-    recieveMessage:
-      handler: artifacts/recieveMessage.handler
-      name: ${self:provider.stage}-${self:service}-recieveMessage
-      memorySize: 128
-      timeout: 30
-      events:
-        - sqs:
-            arn:
-              Fn::GetAtt:
-                - primaryQueue
-                - Arn
-            batchSize: 1
-            maximumBatchingWindow: 300
-            enabled: false
-      iamRoleStatements:
-        - Effect: 'Allow'
-          Action:
-            - 'sqs:GetQueueAttributes'
-            - 'sqs:ReceiveMessage'
-            - 'sqs:GetQueueUrl'
-            - 'sqs:DeleteMessage'
-          Resource:
-            Fn::GetAtt:
-              - primaryQueue
-              - Arn
-      package:
-        include: 'aritifacts/recieveMessage.js'
+resources:
+  Resources:
+    primaryQueue:
+      Type: 'AWS::SQS::Queue'
+      Properties:
+        QueueName: ${self:provider.stage}-${self:service}-primary-queue
 
-  resources:
-    Resources:
-      primaryQueue:
-        Type: 'AWS::SQS::Queue'
-        Properties:
-          QueueName: ${self:provider.stage}-${self:service}-primary-queue
-
+package:
+  individually: true
